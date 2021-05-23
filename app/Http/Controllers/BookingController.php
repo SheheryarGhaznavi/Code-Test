@@ -35,17 +35,30 @@ class BookingController extends Controller
      */
     public function index(Request $request)
     {
-        if($user_id = $request->get('user_id')) {
+        $error = 0;
+        $message = 'Success';
+        $response = null;
 
-            $response = $this->repository->getUsersJobs($user_id);
+        try {
+            if($request->get('user_id') && $user_id = $request->get('user_id')) {
+                $response = $this->repository->getUsersJobs($user_id);
+            } elseif($request->__authenticatedUser->user_type == env('ADMIN_ROLE_ID') || $request->__authenticatedUser->user_type == env('SUPERADMIN_ROLE_ID')) {
+                $response = $this->repository->getAll($request);
+            }
 
+            if ($response && $response['error'] == 1) { // i am assuming that we also receive a response like that
+                $error = 1;
+                $message = 'Error Occurred';
+            }
+
+        } catch (Exception $e) {
+            $error = 1;
+            $message = $e->getMessage();
+
+            $dump = $e->getTraceAsString(); // Send this in email or slack notification 
         }
-        elseif($request->__authenticatedUser->user_type == env('ADMIN_ROLE_ID') || $request->__authenticatedUser->user_type == env('SUPERADMIN_ROLE_ID'))
-        {
-            $response = $this->repository->getAll($request);
-        }
 
-        return response($response);
+        return response(compact('error','message','response'));
     }
 
     /**
@@ -170,12 +183,7 @@ class BookingController extends Controller
 
     public function customerNotCall(Request $request)
     {
-        $data = $request->all();
-
-        $response = $this->repository->customerNotCall($data);
-
-        return response($response);
-
+        return response($this->repository->customerNotCall($request->all())); // i am assuming that we are receiving the array containing the error as a index
     }
 
     /**
@@ -184,12 +192,7 @@ class BookingController extends Controller
      */
     public function getPotentialJobs(Request $request)
     {
-        $data = $request->all();
-        $user = $request->__authenticatedUser;
-
-        $response = $this->repository->getPotentialJobs($user);
-
-        return response($response);
+        return response($this->repository->getPotentialJobs($request->__authenticatedUser));
     }
 
     public function distanceFeed(Request $request)
